@@ -1,5 +1,5 @@
 homepage: "https://advertising.amazon.com"
-documentation: "https://github.com/amzn/ads-advanced-tools-docs/tree/main/conversions_api/events_api_google_tag_manager"
+documentation: "https://advertising.amazon.com/API/docs/en-us/guides/events/events"
 versions:
-  - sha: PLACEHOLDER_SHA
-    changeNotes: Initial release.
+  - sha: fc14c8a69da597358d913866e82698ba17e16c9f
+    changeNotes: Initial release (v1.0.0)
