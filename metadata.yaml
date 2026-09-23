@@ -1,5 +1,11 @@
 homepage: "https://advertising.amazon.com"
 documentation: "https://advertising.amazon.com/API/docs/en-us/guides/events/events"
 versions:
+  # Latest version
+  - sha: 0007fc7824667ea4bacac2116a155f1808ae0ce9
+    changeNotes: |2
+      Add Manager Account support.
+      Add API Token authentication (Ads Data Manager dataset).
+  # Older versions
   - sha: fc14c8a69da597358d913866e82698ba17e16c9f
     changeNotes: Initial release (v1.0.0)
