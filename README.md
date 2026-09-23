@@ -2,15 +2,19 @@
 
 This Google Tag Manager server-side template sends conversion events to the Amazon Ads Events API from your GTM server container. It supports automatic GA4 event data integration or fully manual configuration for non-GA4 setups.
 
+The template supports two authentication methods (OAuth and API Token). OAuth works with both account types (DSP Advertiser Account and Amazon Ads Manager Account); API Token supports Manager Account only.
+
 ## Getting Started
 
 1. In Google Tag Manager, go to **Templates** → **Search Gallery**
 2. Search for **Amazon Events API** and add it to your workspace
-3. Also add the companion templates: [Amazon CAPI Auth](https://github.com/amzn/ads-capi-gtm-auth) and [Amazon CAPI Timestamp](https://github.com/amzn/ads-capi-gtm-timestamp)
-4. Create a variable using the **Amazon CAPI Auth** template — enter your Client ID, Client Secret, and Refresh Token
+3. Add the companion template [Amazon CAPI Timestamp](https://github.com/amzn/ads-capi-gtm-timestamp). If using OAuth, also add [Amazon CAPI Auth](https://github.com/amzn/ads-capi-gtm-auth)
+4. Set up authentication based on your method:
+   - **OAuth** — create a variable using the **Amazon CAPI Auth** template and enter your Client ID, Client Secret, and Refresh Token
+   - **API Token** — no auth variable is needed; you'll paste your API Token and Ads Data Manager Dataset ID directly into the tag
 5. Create a variable using the **Amazon CAPI Timestamp** template (no configuration needed for real-time events)
 6. Create a new tag using the **Amazon Events API** template
-7. Configure the required fields (see below), set up a trigger, and publish
+7. Choose your authentication method and account type, configure the required fields (see below), set up a trigger, and publish
 
 ---
 
@@ -81,13 +85,29 @@ Pre-hashed `sha256_email_address` and `sha256_phone_number` keys are also suppor
 
 Choose how the tag populates its fields:
 
-- **Automatic** — Auto-reads match keys, event name, value, event ID, and product attributes from GA4 event data flowing through your server container. You only configure Auth, Account ID, Country Code, Conversion Type, Event Source, Event Time, and consent.
+- **Automatic** — Auto-reads match keys, event name, value, event ID, and product attributes from GA4 event data flowing through your server container. You only configure authentication, account, Country Code, Conversion Type, Event Source, Event Time, and consent.
 - **Manual** — You configure every field yourself using GTM variables or hardcoded values. Use this when your data doesn't come from a GA4 client.
+
+### Authentication Method
+
+Choose how the tag authenticates with the Amazon Ads Events API:
+
+- **OAuth (Bearer Token)** — standard OAuth flow. Requires the **Amazon CAPI Auth** variable providing an access token and client ID.
+- **API Token** — a persistent service token bound to a specific Ads Data Manager dataset. No client ID or bearer token needed, and no token refresh. Requires an **API Token** and an **Ads Data Manager Dataset ID**. Each token is tied to a single dataset. Supports Manager Account only.
+
+OAuth works with either account type. API Token supports Manager Account only, so when API Token is selected the Account Type is always Manager Account.
+
+### Account Type
+
+The Account Type selector appears only with OAuth. With API Token the account is always a Manager Account, so you enter the Manager Account ID directly.
+
+- **DSP Advertiser Account** (OAuth only) — sends events to an Amazon DSP Advertiser account. Enter the **Advertiser Account ID** found under Account access & settings → Accounts.
+- **Amazon Ads Manager Account** — sends events to Amazon Ads Data Manager. Enter the **Manager Account ID** (format `amzn1.ads1.ma1.<id>`) found under Account access & settings → Manager Accounts.
 
 ### Required Fields
 
-- **Amazon CAPI Auth Variable** — select the auth variable created above
-- **Account ID** — your 18-digit DSP Advertiser ID (found in [Amazon DSP](https://advertising.amazon.com) under Campaign Manager → Advertisers)
+- **Authentication** — OAuth (Amazon CAPI Auth variable) or API Token (API Token + Ads Data Manager Dataset ID)
+- **Account** — with OAuth, choose Account Type and enter the matching Advertiser or Manager Account ID; with API Token, enter the Manager Account ID
 - **Country Code** — 2-letter ISO 3166-1 alpha-2 code (US, GB, DE, FR, JP, etc.)
 - **Conversion Type** — select the event type (Add to Cart, Lead, Off-Amazon Purchases, Sign Up, etc.)
 - **Event Source** — Website, Android, iOS, or Offline

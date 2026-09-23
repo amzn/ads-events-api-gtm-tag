@@ -33,7 +33,7 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "LABEL",
     "name": "quickStartBanner",
-    "displayName": "<b>Quick Start</b> — Sends conversion events to Amazon Ads from sGTM via the <a href=\"https://advertising.amazon.com/API/docs/en-us/guides/events/events\" target=\"_blank\">Events API</a>.<br/><b>Required:</b> Auth, Account ID, Country Code, Conversion Type, Event Source, Event Time<br/><b>Automatic mode:</b> Match Keys, Event Name, Value, Event ID, Brand, Category, Currency, Units Sold auto-populate from GA4 event data<br/><b>EU/UK:</b> Consent required — configure under Privacy &amp; Consent"
+    "displayName": "<b>Quick Start</b> — Sends conversion events to Amazon Ads from sGTM via the <a href=\"https://advertising.amazon.com/API/docs/en-us/guides/events/events\" target=\"_blank\">Events API</a>.<br/><b>Required:</b> Auth, Account Type (Advertiser Account ID or Manager Account ID), Country Code, Conversion Type, Event Source, Event Time<br/><b>Automatic mode:</b> Match Keys, Event Name, Value, Event ID, Brand, Category, Currency, Units Sold auto-populate from GA4 event data<br/><b>EU/UK:</b> Consent required — configure under Privacy &amp; Consent"
   },
   {
     "type": "GROUP",
@@ -61,20 +61,122 @@ ___TEMPLATE_PARAMETERS___
         "defaultValue": "MANUAL"
       },
       {
+        "type": "RADIO",
+        "name": "authMethod",
+        "displayName": "Authentication Method",
+        "radioItems": [
+          {
+            "value": "OAUTH",
+            "displayValue": "OAuth (Bearer Token)",
+            "help": "Standard OAuth flow. Requires the Amazon CAPI Auth variable providing an access token and client ID."
+          },
+          {
+            "value": "API_TOKEN",
+            "displayValue": "API Token (amzn_ads|...)",
+            "help": "Persistent Service Token bound to a specific dataset. Does not require a client ID or bearer token. Supports Manager Account only."
+          }
+        ],
+        "simpleValueType": true,
+        "defaultValue": "OAUTH"
+      },
+      {
         "type": "TEXT",
         "name": "auth",
         "displayName": "Amazon CAPI Auth Variable *",
         "simpleValueType": false,
         "help": "Select your imported Amazon CAPI Auth variable that provides the access token and client ID.",
-        "valueValidators": [{"type": "NON_EMPTY"}]
+        "enablingConditions": [
+          {"paramName": "authMethod", "paramValue": "OAUTH", "type": "EQUALS"}
+        ],
+        "valueValidators": [
+          {
+            "type": "NON_EMPTY",
+            "enablingConditions": [
+              {"paramName": "authMethod", "paramValue": "OAUTH", "type": "EQUALS"}
+            ]
+          }
+        ]
+      },
+      {
+        "type": "TEXT",
+        "name": "apiToken",
+        "displayName": "API Token *",
+        "simpleValueType": true,
+        "help": "Your API Token from your Amazon Ads Data Manager dataset (starts with amzn_ads|...). Each token is tied to a single dataset.",
+        "enablingConditions": [
+          {"paramName": "authMethod", "paramValue": "API_TOKEN", "type": "EQUALS"}
+        ],
+        "valueValidators": [
+          {
+            "type": "NON_EMPTY",
+            "enablingConditions": [
+              {"paramName": "authMethod", "paramValue": "API_TOKEN", "type": "EQUALS"}
+            ]
+          }
+        ]
+      },
+      {
+        "type": "RADIO",
+        "name": "accountTypeOAuth",
+        "displayName": "Account Type",
+        "radioItems": [
+          {
+            "value": "ADVERTISER_ID",
+            "displayValue": "DSP Advertiser Account",
+            "help": "Sends events to an Amazon DSP Advertiser account. Use the Advertiser Account ID found under Account access &amp; settings > Accounts."
+          },
+          {
+            "value": "MANAGER_ACCOUNT_ID",
+            "displayValue": "Amazon Ads Manager Account",
+            "help": "Sends events to Amazon Ads Data Manager. Use the Manager Account ID found in the Amazon Ads Console under Account access &amp; settings > Manager Accounts."
+          }
+        ],
+        "simpleValueType": true,
+        "defaultValue": "MANAGER_ACCOUNT_ID",
+        "enablingConditions": [
+          {"paramName": "authMethod", "paramValue": "OAUTH", "type": "EQUALS"}
+        ]
       },
       {
         "type": "TEXT",
         "name": "accountId",
-        "displayName": "Account ID (DSP Advertiser ID) *",
+        "displayName": "Advertiser Account ID *",
         "simpleValueType": true,
-        "help": "Your 18-digit Amazon DSP Advertiser ID. Found in <a href=\"https://advertising.amazon.com\" target=\"_blank\">Amazon DSP</a> under Campaign Manager > Advertisers.",
-        "valueValidators": [{"type": "NON_EMPTY"}]
+        "help": "Your Amazon DSP Advertiser Account ID. Found under Account access &amp; settings > Accounts.",
+        "enablingConditions": [
+          {"paramName": "accountTypeOAuth", "paramValue": "ADVERTISER_ID", "type": "EQUALS"}
+        ],
+        "valueValidators": [
+          {"type": "NON_EMPTY"}
+        ]
+      },
+      {
+        "type": "TEXT",
+        "name": "managerAccountId",
+        "displayName": "Manager Account ID *",
+        "simpleValueType": true,
+        "help": "Your Amazon Ads Manager Account ID. Found in the Amazon Ads Console under Account access &amp; settings > Manager Accounts.",
+        "enablingConditions": [
+          {"paramName": "accountTypeOAuth", "paramValue": "MANAGER_ACCOUNT_ID", "type": "EQUALS"}
+        ],
+        "valueValidators": [
+          {"type": "NON_EMPTY"},
+          {"type": "REGEX", "args": ["^amzn1\\.ads1\\.ma1\\.[a-zA-Z0-9]+$"], "errorMessage": "Must be a Manager Account ID in the format amzn1.ads1.ma1.<id>."}
+        ]
+      },
+      {
+        "type": "TEXT",
+        "name": "managerAccountIdToken",
+        "displayName": "Manager Account ID *",
+        "simpleValueType": true,
+        "help": "Your Amazon Ads Manager Account ID. API Token supports Manager Account only. Found in the Amazon Ads Console under Account access &amp; settings > Manager Accounts.",
+        "enablingConditions": [
+          {"paramName": "authMethod", "paramValue": "API_TOKEN", "type": "EQUALS"}
+        ],
+        "valueValidators": [
+          {"type": "NON_EMPTY"},
+          {"type": "REGEX", "args": ["^amzn1\\.ads1\\.ma1\\.[a-zA-Z0-9]+$"], "errorMessage": "Must be a Manager Account ID in the format amzn1.ads1.ma1.<id>."}
+        ]
       },
       {
         "type": "TEXT",
@@ -161,7 +263,28 @@ ___TEMPLATE_PARAMETERS___
         "name": "dataSetName",
         "displayName": "Dataset Name",
         "simpleValueType": true,
-        "help": "Optional. Groups related events for organization and reporting."
+        "help": "Optional. Groups related events for organization and reporting.",
+        "enablingConditions": [
+          {"paramName": "authMethod", "paramValue": "OAUTH", "type": "EQUALS"}
+        ]
+      },
+      {
+        "type": "TEXT",
+        "name": "dataSetId",
+        "displayName": "Dataset ID *",
+        "simpleValueType": true,
+        "help": "Required for API Token auth. The dataset this token is bound to (amzn1.adm.ds1.evnt1....). Every event in the request must reference this same dataset.",
+        "enablingConditions": [
+          {"paramName": "authMethod", "paramValue": "API_TOKEN", "type": "EQUALS"}
+        ],
+        "valueValidators": [
+          {
+            "type": "NON_EMPTY",
+            "enablingConditions": [
+              {"paramName": "authMethod", "paramValue": "API_TOKEN", "type": "EQUALS"}
+            ]
+          }
+        ]
       }
     ]
   },
@@ -389,6 +512,14 @@ var getEventData = require('getEventData');
 
 // --- Configuration ---
 const useAutoDetect = (data.configMode === 'AUTO');
+var isApiToken = (data.authMethod === 'API_TOKEN');
+
+// API Token is always Manager (managerAccountIdToken); OAuth uses accountTypeOAuth + managerAccountId.
+var effectiveAccountType = isApiToken ? 'MANAGER_ACCOUNT_ID' : (data.accountTypeOAuth || 'ADVERTISER_ID');
+// managerAccountIdToken (API Token) and managerAccountId (OAuth) both validate against the same
+// regex (^amzn1\.ads1\.ma1\.[a-zA-Z0-9]+$). Keep both validators in sync if the format changes.
+var effectiveManagerAccountId = isApiToken ? data.managerAccountIdToken : data.managerAccountId;
+
 
 // --- Resolve helper: manual value wins, event data is fallback ---
 function resolve(manualValue, eventDataKey) {
@@ -1035,9 +1166,28 @@ function buildCustomData() {
 // --- Validation ---
 
 function validateAuth() {
-  if (!data.auth || !data.auth.accessToken || !data.auth.clientId) {
-    logToConsole('[Validation] Missing or invalid auth configuration. Ensure the Amazon CAPI Auth variable is correctly configured.');
-    return false;
+  if (data.authMethod === 'API_TOKEN') {
+    if (!data.apiToken) {
+      logToConsole('[Validation] Missing API Token. Ensure the API Token field is filled in.');
+      return false;
+    }
+  } else {
+    if (!data.auth || !data.auth.accessToken || !data.auth.clientId) {
+      logToConsole('[Validation] Missing or invalid auth configuration. Ensure the Amazon CAPI Auth variable is correctly configured.');
+      return false;
+    }
+  }
+  // API Token is Manager only (enforced by forked UI fields); OAuth uses the selection.
+  if (effectiveAccountType === 'MANAGER_ACCOUNT_ID') {
+    if (!effectiveManagerAccountId) {
+      logToConsole('[Validation] Missing Manager Account ID. Required when Account Type is Amazon Ads Manager Account.');
+      return false;
+    }
+  } else {
+    if (!data.accountId) {
+      logToConsole('[Validation] Missing Advertiser Account ID. Required when Account Type is DSP Advertiser Account.');
+      return false;
+    }
   }
   return true;
 }
@@ -1186,7 +1336,8 @@ var event = {
   matchKeys: matchKeys
 };
 
-if (data.dataSetName) event.eventDescription.dataSetName = data.dataSetName;
+if (!isApiToken && data.dataSetName) event.eventDescription.dataSetName = data.dataSetName;
+if (isApiToken && data.dataSetId) event.dataSetId = data.dataSetId;
 if (resolvedValue) event.value = makeNumber(resolvedValue);
 if (resolvedConversionType === 'OFF_AMAZON_PURCHASES') {
   if (resolvedCurrency) event.currencyCode = resolvedCurrency;
@@ -1217,20 +1368,35 @@ var customData = buildCustomData();
 if (customData) event.customData = customData;
 
 // Send request
+var headers = {
+  'Content-Type': 'application/vnd.dspconversioneventimport.v1+json',
+  'x-amzn-integration-source': 'SERVER_SIDE_GOOGLE_TAG_MANAGER',
+  'x-amzn-template-version': '1.0.0'
+};
+
+if (isApiToken) {
+  headers['Amazon-Advertising-API-Token'] = data.apiToken;
+} else {
+  headers['Authorization'] = 'Bearer ' + data.auth.accessToken;
+  headers['Amazon-Ads-ClientId'] = data.auth.clientId;
+}
+
+// OAuth supports Advertiser or Manager; API Token supports Manager only.
+if (effectiveAccountType === 'MANAGER_ACCOUNT_ID') {
+  headers['Amazon-Ads-Manager-AccountId'] = effectiveManagerAccountId;
+} else {
+  headers['Amazon-Ads-AccountId'] = data.accountId;
+}
+
 var requestOptions = {
   method: 'POST',
-  headers: {
-    'Content-Type': 'application/vnd.dspconversioneventimport.v1+json',
-    'Authorization': 'Bearer ' + data.auth.accessToken,
-    'Amazon-Ads-ClientId': data.auth.clientId,
-    'Amazon-Ads-AccountId': data.accountId,
-    'x-amzn-integration-source': 'SERVER_SIDE_GOOGLE_TAG_MANAGER',
-    'x-amzn-template-version': '1.0.0'
-  }
+  headers: headers
 };
 
 var requestBody = { events: [event] };
-logToConsole('[Amazon Events API] Sending event: ' + resolvedEventName + ' (' + resolvedConversionType + ') - Mode: ' + data.configMode);
+var dataSetLabel = isApiToken ? (data.dataSetId || 'token-bound') : (data.dataSetName || 'Default_Events');
+logToConsole('[Amazon Events API] Auth: ' + (isApiToken ? 'API_TOKEN' : 'OAUTH') + ' | Account type: ' + effectiveAccountType);
+logToConsole('[Amazon Events API] Sending event: ' + resolvedEventName + ' (' + resolvedConversionType + ') to ' + dataSetLabel + ' - Mode: ' + data.configMode);
 
 // Redact sensitive match key values (e.g., FIP) from debug logs
 var redactedBody = JSON.parse(JSON.stringify(requestBody));
@@ -2012,6 +2178,40 @@ scenarios:
     // Both empty
     assertThat(resolveMatchKey('', '')).isEqualTo('');
 
+- name: ADVERTISER_ID account type sends Amazon-Ads-AccountId header only
+  code: |-
+    const buildAccountHeader = (accountType, accountId, managerAccountId) => {
+      const headers = {};
+      if (accountType === 'MANAGER_ACCOUNT_ID') {
+        headers['Amazon-Ads-Manager-AccountId'] = managerAccountId;
+      } else {
+        headers['Amazon-Ads-AccountId'] = accountId;
+      }
+      return headers;
+    };
+    // Both DSP (numeric) and SGA (amzn1.ads-account.g...) IDs use the same header - no format enforced
+    const dspResult = buildAccountHeader('ADVERTISER_ID', '000001', undefined);
+    assertThat(dspResult['Amazon-Ads-AccountId']).isEqualTo('000001');
+    assertThat(dspResult['Amazon-Ads-Manager-AccountId']).isUndefined();
+    const sgaResult = buildAccountHeader('ADVERTISER_ID', 'amzn1.ads-account.g.exampleid', undefined);
+    assertThat(sgaResult['Amazon-Ads-AccountId']).isEqualTo('amzn1.ads-account.g.exampleid');
+    assertThat(sgaResult['Amazon-Ads-Manager-AccountId']).isUndefined();
+
+- name: MANAGER_ACCOUNT_ID account type sends Amazon-Ads-Manager-AccountId header only
+  code: |-
+    const buildAccountHeader = (accountType, accountId, managerAccountId) => {
+      const headers = {};
+      if (accountType === 'MANAGER_ACCOUNT_ID') {
+        headers['Amazon-Ads-Manager-AccountId'] = managerAccountId;
+      } else {
+        headers['Amazon-Ads-AccountId'] = accountId;
+      }
+      return headers;
+    };
+    const result = buildAccountHeader('MANAGER_ACCOUNT_ID', undefined, 'amzn1.ads1.ma1.exampleaccountid01');
+    assertThat(result['Amazon-Ads-Manager-AccountId']).isEqualTo('amzn1.ads1.ma1.exampleaccountid01');
+    assertThat(result['Amazon-Ads-AccountId']).isUndefined();
+
 - name: resolveEventName returns empty in manual mode with no value
   code: |-
     function resolveEventName(eventName, useAutoDetect, eventDataName) {
@@ -2029,10 +2229,143 @@ scenarios:
     assertThat(resolveEventName('MyEvent', true, 'purchase')).isEqualTo('MyEvent');
     assertThat(resolveEventName('MyEvent', false, '')).isEqualTo('MyEvent');
 
+- name: Forked account fields resolve to effective values and validate
+  code: |-
+    // Mirrors template: API Token always Manager and reads managerAccountIdToken;
+    // OAuth uses accountTypeOAuth and reads managerAccountId. (enablingConditions are ANDed,
+    // so the Manager ID is split into two single-condition fields.)
+    function resolveAccountType(authMethod, accountTypeOAuth) {
+      return authMethod === 'API_TOKEN' ? 'MANAGER_ACCOUNT_ID' : accountTypeOAuth;
+    }
+    function resolveManagerId(authMethod, managerAccountIdToken, managerAccountId) {
+      return authMethod === 'API_TOKEN' ? managerAccountIdToken : managerAccountId;
+    }
+    function validateAuth(authMethod, apiToken, auth, accountTypeOAuth, accountId, managerAccountIdToken, managerAccountId) {
+      if (authMethod === 'API_TOKEN') {
+        if (!apiToken) return { valid: false, error: 'Missing API Token' };
+      } else {
+        if (!auth || !auth.accessToken || !auth.clientId) return { valid: false, error: 'Missing OAuth config' };
+      }
+      var effectiveAccountType = resolveAccountType(authMethod, accountTypeOAuth);
+      var effectiveManagerId = resolveManagerId(authMethod, managerAccountIdToken, managerAccountId);
+      if (effectiveAccountType === 'MANAGER_ACCOUNT_ID') {
+        if (!effectiveManagerId) return { valid: false, error: 'Missing Manager Account ID' };
+      } else {
+        if (!accountId) return { valid: false, error: 'Missing Advertiser Account ID' };
+      }
+      return { valid: true };
+    }
+    // API Token always resolves to Manager (no accountTypeOAuth in that path)
+    assertThat(resolveAccountType('API_TOKEN', undefined)).isEqualTo('MANAGER_ACCOUNT_ID');
+    assertThat(resolveAccountType('OAUTH', 'ADVERTISER_ID')).isEqualTo('ADVERTISER_ID');
+    assertThat(resolveAccountType('OAUTH', 'MANAGER_ACCOUNT_ID')).isEqualTo('MANAGER_ACCOUNT_ID');
+    // Manager ID resolves from the field for the active auth path
+    assertThat(resolveManagerId('API_TOKEN', 'amzn1.ads1.ma1.tok', undefined)).isEqualTo('amzn1.ads1.ma1.tok');
+    assertThat(resolveManagerId('OAUTH', undefined, 'amzn1.ads1.ma1.oauth')).isEqualTo('amzn1.ads1.ma1.oauth');
+    // API Token + token Manager ID - valid
+    assertThat(validateAuth('API_TOKEN', 'amzn_ads|token123', null, undefined, null, 'amzn1.ads1.ma1.abc', null).valid).isTrue();
+    // API Token - missing token
+    assertThat(validateAuth('API_TOKEN', '', null, undefined, null, 'amzn1.ads1.ma1.abc', null).error).isEqualTo('Missing API Token');
+    // API Token - missing token Manager ID
+    assertThat(validateAuth('API_TOKEN', 'amzn_ads|token123', null, undefined, null, '', null).error).isEqualTo('Missing Manager Account ID');
+    // OAuth + Advertiser - missing account id
+    assertThat(validateAuth('OAUTH', null, { accessToken: 'bearer123', clientId: 'client456' }, 'ADVERTISER_ID', '', null, null).error).isEqualTo('Missing Advertiser Account ID');
+    // OAuth + Manager - valid (uses managerAccountId, not the token field)
+    assertThat(validateAuth('OAUTH', null, { accessToken: 'bearer123', clientId: 'client456' }, 'MANAGER_ACCOUNT_ID', null, null, 'amzn1.ads1.ma1.abc').valid).isTrue();
+    // OAuth - missing auth
+    assertThat(validateAuth('OAUTH', null, null, 'MANAGER_ACCOUNT_ID', null, null, 'amzn1.ads1.ma1.abc').error).isEqualTo('Missing OAuth config');
+
+- name: API Token auth sets correct headers
+  code: |-
+    function buildHeaders(authMethod, apiToken, auth, accountType, accountId, managerAccountId) {
+      var headers = {
+        'Content-Type': 'application/vnd.dspconversioneventimport.v1+json',
+        'x-amzn-integration-source': 'SERVER_SIDE_GOOGLE_TAG_MANAGER',
+        'x-amzn-template-version': '1.0.0'
+      };
+      if (authMethod === 'API_TOKEN') {
+        headers['Amazon-Advertising-API-Token'] = apiToken;
+      } else {
+        headers['Authorization'] = 'Bearer ' + auth.accessToken;
+        headers['Amazon-Ads-ClientId'] = auth.clientId;
+      }
+      // Account header chosen by accountType
+      if (accountType === 'MANAGER_ACCOUNT_ID') {
+        headers['Amazon-Ads-Manager-AccountId'] = managerAccountId;
+      } else {
+        headers['Amazon-Ads-AccountId'] = accountId;
+      }
+      return headers;
+    }
+    // API Token + Manager Account
+    var tokenMaHeaders = buildHeaders('API_TOKEN', 'amzn_ads|mytoken', null, 'MANAGER_ACCOUNT_ID', null, 'amzn1.ads1.ma1.xyz');
+    assertThat(tokenMaHeaders['Amazon-Advertising-API-Token']).isEqualTo('amzn_ads|mytoken');
+    assertThat(tokenMaHeaders['Amazon-Ads-Manager-AccountId']).isEqualTo('amzn1.ads1.ma1.xyz');
+    assertThat(tokenMaHeaders['Authorization']).isUndefined();
+    assertThat(tokenMaHeaders['Amazon-Ads-ClientId']).isUndefined();
+    // OAuth with Manager Account headers
+    var oauthMaHeaders = buildHeaders('OAUTH', null, { accessToken: 'tok', clientId: 'cli' }, 'MANAGER_ACCOUNT_ID', null, 'amzn1.ads1.ma1.abc');
+    assertThat(oauthMaHeaders['Authorization']).isEqualTo('Bearer tok');
+    assertThat(oauthMaHeaders['Amazon-Ads-ClientId']).isEqualTo('cli');
+    assertThat(oauthMaHeaders['Amazon-Ads-Manager-AccountId']).isEqualTo('amzn1.ads1.ma1.abc');
+    assertThat(oauthMaHeaders['Amazon-Advertising-API-Token']).isUndefined();
+    // OAuth with DSP Advertiser headers
+    var oauthDspHeaders = buildHeaders('OAUTH', null, { accessToken: 'tok', clientId: 'cli' }, 'ADVERTISER_ID', '000001', null);
+    assertThat(oauthDspHeaders['Amazon-Ads-AccountId']).isEqualTo('000001');
+    assertThat(oauthDspHeaders['Amazon-Ads-Manager-AccountId']).isUndefined();
+
+- name: dataSetId is used for API Token auth, dataSetName for OAuth
+  code: |-
+    function buildEventPayload(authMethod, dataSetName, dataSetId) {
+      var event = { eventDescription: { name: 'test' } };
+      if (authMethod !== 'API_TOKEN' && dataSetName) {
+        event.eventDescription.dataSetName = dataSetName;
+      }
+      if (authMethod === 'API_TOKEN' && dataSetId) {
+        event.dataSetId = dataSetId;
+      }
+      return event;
+    }
+    // API Token uses dataSetId at event level
+    var tokenEvent = buildEventPayload('API_TOKEN', 'ignored_name', 'amzn1.adm.ds1.evnt1.abc');
+    assertThat(tokenEvent.dataSetId).isEqualTo('amzn1.adm.ds1.evnt1.abc');
+    assertThat(tokenEvent.eventDescription.dataSetName).isUndefined();
+    // OAuth uses dataSetName in eventDescription
+    var oauthEvent = buildEventPayload('OAUTH', 'MyDataSet', 'ignored_id');
+    assertThat(oauthEvent.eventDescription.dataSetName).isEqualTo('MyDataSet');
+    assertThat(oauthEvent.dataSetId).isUndefined();
+    // OAuth with no dataSetName
+    var oauthNoDs = buildEventPayload('OAUTH', '', '');
+    assertThat(oauthNoDs.eventDescription.dataSetName).isUndefined();
+    assertThat(oauthNoDs.dataSetId).isUndefined();
+
+- name: Account header is chosen by account type
+  code: |-
+    // OAuth supports Advertiser or Manager; API Token supports Manager only.
+    // The account header name is chosen by accountType.
+    function getAccountHeaderName(accountType) {
+      return accountType === 'MANAGER_ACCOUNT_ID' ? 'Amazon-Ads-Manager-AccountId' : 'Amazon-Ads-AccountId';
+    }
+    assertThat(getAccountHeaderName('MANAGER_ACCOUNT_ID')).isEqualTo('Amazon-Ads-Manager-AccountId');
+    assertThat(getAccountHeaderName('ADVERTISER_ID')).isEqualTo('Amazon-Ads-AccountId');
+
+- name: Log output includes auth method indicator
+  code: |-
+    function buildLogMessage(authMethod, accountType) {
+      var authLabel = authMethod === 'API_TOKEN' ? 'API_TOKEN' : 'OAUTH';
+      return '[Amazon Events API] Auth: ' + authLabel + ' | Account type: ' + accountType;
+    }
+    assertThat(buildLogMessage('API_TOKEN', 'MANAGER_ACCOUNT_ID'))
+      .isEqualTo('[Amazon Events API] Auth: API_TOKEN | Account type: MANAGER_ACCOUNT_ID');
+    assertThat(buildLogMessage('OAUTH', 'ADVERTISER_ID'))
+      .isEqualTo('[Amazon Events API] Auth: OAUTH | Account type: ADVERTISER_ID');
+    assertThat(buildLogMessage('OAUTH', 'MANAGER_ACCOUNT_ID'))
+      .isEqualTo('[Amazon Events API] Auth: OAUTH | Account type: MANAGER_ACCOUNT_ID');
+
 
 ___NOTES___
 
-Created in July 2026 by Amazon Ad Tech Solutions.
+Created in September 2026 by Amazon Ad Tech Solutions.
 
 ## Version History
-- v1.0.0 (July 2026): Initial Release
+- v1.0.0 (September 2026): Initial Release
