@@ -7,7 +7,7 @@ The template supports two authentication methods (OAuth and API Token). OAuth wo
 ## Getting Started
 
 1. In Google Tag Manager, go to **Templates** → **Search Gallery**
-2. Search for **Amazon Events API** and add it to your workspace
+2. Search for the exact template name **Amazon Events API (Conversions API v2) by amzn** and add it to your workspace
 3. Add the companion template [Amazon CAPI Timestamp](https://github.com/amzn/ads-capi-gtm-timestamp). If using OAuth, also add [Amazon CAPI Auth](https://github.com/amzn/ads-capi-gtm-auth)
 4. Set up authentication based on your method:
    - **OAuth** — create a variable using the **Amazon CAPI Auth** template and enter your Client ID, Client Secret, and Refresh Token
@@ -93,7 +93,7 @@ Choose how the tag populates its fields:
 Choose how the tag authenticates with the Amazon Ads Events API:
 
 - **OAuth (Bearer Token)** — standard OAuth flow. Requires the **Amazon CAPI Auth** variable providing an access token and client ID.
-- **API Token** — a persistent service token bound to a specific Ads Data Manager dataset. No client ID or bearer token needed, and no token refresh. Requires an **API Token** and an **Ads Data Manager Dataset ID**. Each token is tied to a single dataset. Supports Manager Account only.
+- **API Token (`amzn_ads|...`)** — a persistent service token bound to a specific Ads Data Manager dataset. No client ID or bearer token needed, and no token refresh. Requires an **API Token** and an **Ads Data Manager Dataset ID**. Each token is tied to a single dataset. Supports Manager Account only.
 
 OAuth works with either account type. API Token supports Manager Account only, so when API Token is selected the Account Type is always Manager Account.
 
@@ -109,7 +109,7 @@ The Account Type selector appears only with OAuth. With API Token the account is
 - **Authentication** — OAuth (Amazon CAPI Auth variable) or API Token (API Token + Ads Data Manager Dataset ID)
 - **Account** — with OAuth, choose Account Type and enter the matching Advertiser or Manager Account ID; with API Token, enter the Manager Account ID
 - **Country Code** — 2-letter ISO 3166-1 alpha-2 code (US, GB, DE, FR, JP, etc.)
-- **Conversion Type** — select the event type (Add to Cart, Lead, Off-Amazon Purchases, Sign Up, etc.)
+- **Conversion Type** — the Amazon conversion type for this event (ADD_TO_SHOPPING_CART, LEAD, OFF_AMAZON_PURCHASES, SIGN_UP, etc.). Enter a value directly or use a GTM variable (e.g. a Lookup Table keyed on event name) so one tag can serve many event types. See the [Conversion Type](#conversion-type) section below for the full list and validation behavior.
 - **Event Source** — Website, Android, iOS, or Offline
 - **Event Time** — use the Amazon CAPI Timestamp variable
 
@@ -121,6 +121,18 @@ The Account Type selector appears only with OAuth. With API Token the account is
 - **Manual mode**: Set directly with a GTM variable or hardcoded value.
 
 Event names have a 256-character maximum and must not contain special characters.
+
+---
+
+## Conversion Type
+
+Conversion Type is **required in both modes** and is a free-text field, so you can set it directly or feed it from a GTM variable (e.g. a Lookup Table keyed on `event_name`) so a single tag can serve many event types.
+
+The resolved value must **exactly match** one of the following (case-sensitive):
+
+`ADD_TO_SHOPPING_CART`, `APPLICATION`, `CHECKOUT`, `CONTACT`, `LEAD`, `OFF_AMAZON_PURCHASES`, `MOBILE_APP_FIRST_START`, `PAGE_VIEW`, `SEARCH`, `SIGN_UP`, `SUBSCRIBE`, `OTHER`
+
+Any other value (a typo, an unmapped lookup result, wrong casing) causes the tag to **fail loudly** rather than send an incorrect conversion type — there is no silent fallback.
 
 ---
 
@@ -160,7 +172,7 @@ Supported match key types:
 ## Event Data
 
 - **Value** — monetary value (max 2 decimal places, e.g., 49.99)
-- **Currency Code** — ISO 4217 format (USD, EUR, GBP). Required when Value is set.
+- **Currency Code** — ISO 4217 format (USD, EUR, GBP). For Off-Amazon Purchases, if you set a Value you must also set a Currency Code.
 - **Units Sold** — positive integer, number of items
 - **Event ID** — unique identifier for deduplication
 
