@@ -13,7 +13,7 @@ ___INFO___
   "id": "cvt_temp_public_id",
   "version": 1,
   "securityGroups": [],
-  "displayName": "Amazon Events API (Conversions API v2)",
+  "displayName": "Amazon Events API (Conversions API v2) by amzn",
   "description": "Implements Amazon's Events API (CAPI v2) through Google Tag Manager with automatic GA4 event data integration.",
   "containerContexts": [
     "SERVER"
@@ -213,26 +213,12 @@ ___TEMPLATE_PARAMETERS___
         "valueValidators": [{"type": "NON_EMPTY"}]
       },
       {
-        "type": "SELECT",
+        "type": "TEXT",
         "name": "conversionType",
         "displayName": "Conversion Type *",
-        "selectItems": [
-          {"value": "ADD_TO_SHOPPING_CART", "displayValue": "Add to Shopping Cart"},
-          {"value": "APPLICATION", "displayValue": "Application"},
-          {"value": "CHECKOUT", "displayValue": "Checkout"},
-          {"value": "CONTACT", "displayValue": "Contact"},
-          {"value": "LEAD", "displayValue": "Lead"},
-          {"value": "OFF_AMAZON_PURCHASES", "displayValue": "Off-Amazon Purchases"},
-          {"value": "MOBILE_APP_FIRST_START", "displayValue": "Mobile App First Start"},
-          {"value": "PAGE_VIEW", "displayValue": "Page View"},
-          {"value": "SEARCH", "displayValue": "Search"},
-          {"value": "SIGN_UP", "displayValue": "Sign Up"},
-          {"value": "SUBSCRIBE", "displayValue": "Subscribe"},
-          {"value": "OTHER", "displayValue": "Other"}
-        ],
         "simpleValueType": true,
         "valueValidators": [{"type": "NON_EMPTY"}],
-        "help": "Select the Amazon conversion type that matches this event."
+        "help": "The Amazon conversion type for this event. Must resolve to exactly one of these values (case-sensitive): ADD_TO_SHOPPING_CART, APPLICATION, CHECKOUT, CONTACT, LEAD, OFF_AMAZON_PURCHASES, MOBILE_APP_FIRST_START, PAGE_VIEW, SEARCH, SIGN_UP, SUBSCRIBE, OTHER. Accepts a GTM variable (e.g. a Lookup Table keyed on event name) so one tag can serve many events; any other value fails the tag."
       },
       {
         "type": "RADIO",
@@ -1225,10 +1211,25 @@ function validateManualModeFields(eventName, conversionType) {
   return valid;
 }
 
+// Amazon Events API conversion type enums. The Conversion Type field is free text
+// (so it can take a GTM variable), so the resolved value must be validated against
+// this allowlist before firing — exact match, case-sensitive. No silent fallback.
+var VALID_CONVERSION_TYPES = [
+  'ADD_TO_SHOPPING_CART', 'APPLICATION', 'CHECKOUT', 'CONTACT',
+  'LEAD', 'OFF_AMAZON_PURCHASES', 'MOBILE_APP_FIRST_START', 'PAGE_VIEW',
+  'SEARCH', 'SIGN_UP', 'SUBSCRIBE', 'OTHER'
+];
+
+function isValidConversionType(conversionType) {
+  return VALID_CONVERSION_TYPES.indexOf(conversionType) !== -1;
+}
+
 function validateValueCurrencyPair(resolvedValue, resolvedCurrency, conversionType) {
   if (conversionType !== 'OFF_AMAZON_PURCHASES') return true;
+  // Only fail when value is set without currency; a missing value is allowed so
+  // zero-value purchases (free trials, 100%-off) still fire.
   if (resolvedValue && !resolvedCurrency) {
-    logToConsole('[Validation] Event Value is set but Currency Code is missing. Both are required for OFF_AMAZON_PURCHASES (ISO-4217 format: USD, EUR, GBP).');
+    logToConsole('[Validation] Event Value is set but Currency Code is missing. Currency Code is required when Event Value is set for OFF_AMAZON_PURCHASES (ISO-4217 format: USD, EUR, GBP).');
     return false;
   }
   return true;
@@ -1290,7 +1291,7 @@ if (matchKeys.length === 0) {
 
 // Resolve event fields
 var resolvedEventName = resolveEventName();
-var resolvedConversionType = data.conversionType;
+var resolvedConversionType = (data.conversionType || '').toString().trim();
 var resolvedValue = resolve(data.value, 'value');
 var resolvedCurrency = resolve(data.currencyCode, 'currency');
 
@@ -1312,7 +1313,16 @@ if (!validateEventName(resolvedEventName)) {
 }
 
 if (!resolvedConversionType) {
-  logToConsole('[Validation] Conversion type could not be resolved. In Automatic mode, ensure a recognized GA4 event is firing. In Manual mode, select a Conversion Type.');
+  logToConsole('[Validation] Conversion type could not be resolved. Provide a Conversion Type directly or a GTM variable (e.g. a Lookup Table on event name) that resolves to a valid value.');
+  data.gtmOnFailure();
+  return;
+}
+
+// Conversion Type is free text (GTM-variable friendly), so the resolved value must be
+// an exact, case-sensitive member of the Amazon enum set. Fail loudly on anything else —
+// no silent fallback, so a typo or lookup miss never ships a wrong conversion type.
+if (!isValidConversionType(resolvedConversionType)) {
+  logToConsole('[Validation] Invalid conversion type: "' + resolvedConversionType + '". Must be one of (case-sensitive): ' + VALID_CONVERSION_TYPES.join(', ') + '. Check the Conversion Type field or the lookup table feeding it.');
   data.gtmOnFailure();
   return;
 }
@@ -2148,7 +2158,7 @@ scenarios:
     var mixed = [{ quantity: 3 }, { item_id: 'abc' }, { quantity: 2 }];
     assertThat(autoDetectUnitsSold(mixed)).isEqualTo(5);
 
-- name: validateValueCurrencyPair only enforces for OFF_AMAZON_PURCHASES
+- name: validateValueCurrencyPair only fails on value without currency for OFF_AMAZON_PURCHASES
   code: |-
     function validateValueCurrencyPair(resolvedValue, resolvedCurrency, conversionType) {
       if (conversionType !== 'OFF_AMAZON_PURCHASES') return true;
@@ -2159,12 +2169,51 @@ scenarios:
     assertThat(validateValueCurrencyPair('49.99', '', 'PAGE_VIEW')).isTrue();
     assertThat(validateValueCurrencyPair('10', '', 'LEAD')).isTrue();
     assertThat(validateValueCurrencyPair('5', '', 'ADD_TO_SHOPPING_CART')).isTrue();
+    // Non-purchase with nothing set is fine
+    assertThat(validateValueCurrencyPair('', '', 'LEAD')).isTrue();
     // OFF_AMAZON_PURCHASES: value without currency fails
     assertThat(validateValueCurrencyPair('49.99', '', 'OFF_AMAZON_PURCHASES')).isFalse();
-    // OFF_AMAZON_PURCHASES: value with currency passes
-    assertThat(validateValueCurrencyPair('49.99', 'USD', 'OFF_AMAZON_PURCHASES')).isTrue();
-    // OFF_AMAZON_PURCHASES: no value is fine
+    // OFF_AMAZON_PURCHASES: currency without value is allowed
+    assertThat(validateValueCurrencyPair('', 'USD', 'OFF_AMAZON_PURCHASES')).isTrue();
+    // OFF_AMAZON_PURCHASES: neither set is allowed (zero-value purchases still fire)
     assertThat(validateValueCurrencyPair('', '', 'OFF_AMAZON_PURCHASES')).isTrue();
+    // OFF_AMAZON_PURCHASES: both value and currency passes
+    assertThat(validateValueCurrencyPair('49.99', 'USD', 'OFF_AMAZON_PURCHASES')).isTrue();
+
+- name: isValidConversionType accepts only exact case-sensitive enum members
+  code: |-
+    var VALID_CONVERSION_TYPES = [
+      'ADD_TO_SHOPPING_CART', 'APPLICATION', 'CHECKOUT', 'CONTACT',
+      'LEAD', 'OFF_AMAZON_PURCHASES', 'MOBILE_APP_FIRST_START', 'PAGE_VIEW',
+      'SEARCH', 'SIGN_UP', 'SUBSCRIBE', 'OTHER'
+    ];
+    function isValidConversionType(conversionType) {
+      return VALID_CONVERSION_TYPES.indexOf(conversionType) !== -1;
+    }
+    // Every supported enum passes
+    assertThat(isValidConversionType('ADD_TO_SHOPPING_CART')).isTrue();
+    assertThat(isValidConversionType('APPLICATION')).isTrue();
+    assertThat(isValidConversionType('CHECKOUT')).isTrue();
+    assertThat(isValidConversionType('CONTACT')).isTrue();
+    assertThat(isValidConversionType('LEAD')).isTrue();
+    assertThat(isValidConversionType('OFF_AMAZON_PURCHASES')).isTrue();
+    assertThat(isValidConversionType('MOBILE_APP_FIRST_START')).isTrue();
+    assertThat(isValidConversionType('PAGE_VIEW')).isTrue();
+    assertThat(isValidConversionType('SEARCH')).isTrue();
+    assertThat(isValidConversionType('SIGN_UP')).isTrue();
+    assertThat(isValidConversionType('SUBSCRIBE')).isTrue();
+    assertThat(isValidConversionType('OTHER')).isTrue();
+    // Wrong case fails (case-sensitive)
+    assertThat(isValidConversionType('lead')).isFalse();
+    assertThat(isValidConversionType('Off_Amazon_Purchases')).isFalse();
+    // Unknown / typo / display-name values fail
+    assertThat(isValidConversionType('PURCHASE')).isFalse();
+    assertThat(isValidConversionType('Add to Shopping Cart')).isFalse();
+    assertThat(isValidConversionType('ADD_TO_CART')).isFalse();
+    // Empty / null fail
+    assertThat(isValidConversionType('')).isFalse();
+    assertThat(isValidConversionType(null)).isFalse();
+    assertThat(isValidConversionType(undefined)).isFalse();
 
 - name: sha256 fallback paths resolve when primary path is empty
   code: |-
